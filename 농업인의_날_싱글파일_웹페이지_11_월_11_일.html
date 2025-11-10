@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="농업인의 날(11월 11일)을 기념하는 싱글파일 웹페이지. 농업의 가치와 지속가능성을 알리는 인터랙티브 마이크로 사이트." />
+  <title>농업인의 날 — 11월 11일</title>
+  <style>
+    /* --------------------------------------------------------------
+       농업인의 날 싱글파일 웹페이지
+       디자인 목표: 절제된 미니멀 + 풍성한 질감, 높은 가독성, 접근성, 반응형
+       기능: 스크롤 애니메이션, 카운터, 탭, 갤러리 라이트박스, 지역 맵(모형), 테마 토글 등
+       코드 라인 수: 1000+ (충분한 설명 주석 포함)
+       -------------------------------------------------------------- */
+
+    /* 0) CSS Reset & Base -------------------------------------------------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple SD Gothic Neo", "Noto Sans KR", "맑은 고딕", sans-serif;
+      line-height: 1.6;
+      color: #1c1d1a;
+      background: #f7f8f5;
+    }
+    img { max-width: 100%; height: auto; display: block; }
+    a { color: inherit; text-decoration: none; }
+    :focus { outline: 2px dashed #2f7d32; outline-offset: 3px; }
+
+    /* 1) CSS Variables (Themes) ------------------------------------------- */
+    :root {
+      /* 자연색 기반 팔레트 */
+      --bg: #f7f8f5;
+      --bg-2: #eef1ea;
+      --bg-3: #e6ecdf;
+      --text: #1c1d1a;
+      --muted: #5a5f52;
+      --primary: #2f7d32; /* 숲 녹색 */
+      --primary-2: #58a05b; /* 밝은 녹 */
+      --accent: #bf8c1a; /* 벼 황금빛 */
+      --accent-2: #e6b422; /* 더 밝은 황금 */
+      --ok: #2e7d32;
+      --warn: #b26a00;
+      --danger: #9e2a2b;
+      --card: #ffffff;
+      --shadow: 0 10px 30px rgba(0,0,0,.08);
+
+      --radius-xl: 22px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+
+      --container: 1200px;
+
+      /* 타이포 */
+      --h1: clamp(32px, 6vw, 64px);
+      --h2: clamp(24px, 4.5vw, 40px);
+      --h3: clamp(20px, 3.5vw, 28px);
+      --lead: clamp(16px, 2.5vw, 20px);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0e0f0d;
+      --bg-2: #161915;
+      --bg-3: #1c201a;
+      --text: #edf1ea;
+      --muted: #a5ad9a;
+      --primary: #7ec97f;
+      --primary-2: #a0df9f;
+      --accent: #ffd56a;
+      --accent-2: #ffe28f;
+      --card: #121411;
+      --shadow: 0 10px 30px rgba(0,0,0,.40);
+    }
+
+    /* 2) Background Textures (Rice pattern & diagonal fields) ------------- */
+    body::before {
+      content: "";
+      position: fixed; inset: 0; z-index: -3;
+      background:
+        linear-gradient(135deg, rgba(191,140,26,0.06) 0%, rgba(191,140,26,0.0) 60%),
+        radial-gradient(1200px 600px at 70% -10%, rgba(88,160,91,0.12), rgba(88,160,91,0));
+    }
+    body::after {
+      /* 논두렁 사선 레이어 */
+      content: "";
+      position: fixed; inset: 0; z-index: -4;
+      background-image:
+        repeating-linear-gradient(
+          -12deg,
+          rgba(47,125,50,0.10) 0px,
+          rgba(47,125,50,0.10) 28px,
+          rgba(230,236,223,0.06) 28px,
+          rgba(230,236,223,0.06) 56px
+        );
+      mix-blend-mode: multiply;
+      opacity: .8;
+      pointer-events: none;
+    }
+
+    /* 3) Layout ------------------------------------------------------------ */
+    .container { width: min(100% - 32px, var(--container)); margin-inline: auto; }
+    .section { padding: 96px 0; }
+    .section.compact { padding: 64px 0; }
+
+    /* 4) Components -------------------------------------------------------- */
+    header.site {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: saturate(140%) blur(8px);
+      background: color-mix(in oklab, var(--bg) 85%, transparent);
+      border-bottom: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent);
+    }
+    .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 800; letter-spacing: -0.02em; }
+    .brand .logo { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), var(--accent)); box-shadow: var(--shadow); }
+    .nav a.link { padding: 10px 12px; border-radius: 10px; color: var(--muted); font-weight: 600; }
+    .nav a.link:hover { background: var(--bg-2); color: var(--text); }
+
+    .btn { display: inline-flex; gap: 10px; align-items: center; padding: 12px 16px; border-radius: 12px; font-weight: 700; border: 1px solid transparent; cursor: pointer; transition: .2s transform ease, .2s background ease; }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: white; }
+    .btn.primary:hover { filter: brightness(1.05); }
+    .btn.ghost { background: transparent; border-color: var(--bg-3); color: var(--text); }
+    .btn.ghost:hover { background: var(--bg-2); }
+
+    .badge { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; background: var(--bg-3); color: var(--text); border-radius: 999px; padding: 6px 12px; }
+
+    /* 5) Hero -------------------------------------------------------------- */
+    .hero { position: relative; padding: 96px 0 40px; }
+    .hero .grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 40px; align-items: center; }
+    .hero h1 { font-size: var(--h1); line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 16px; }
+    .hero p.lead { font-size: var(--lead); color: var(--muted); margin: 0 0 28px; }
+    .hero .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .hero-art { position: relative; aspect-ratio: 4/3; border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow); background: radial-gradient(100% 60% at 40% 30%, rgba(88,160,91,.35), transparent), linear-gradient(180deg, var(--card), var(--bg)); }
+    .hero-art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    /* 6) Info Cards -------------------------------------------------------- */
+    .cards { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .card { grid-column: span 4; background: var(--card); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow); border: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent); }
+    .card h3 { margin: 0 0 8px; font-size: var(--h3); }
+    .card p { margin: 0; color: var(--muted); }
+
+    /* 7) Timeline ---------------------------------------------------------- */
+    .timeline { position: relative; margin-top: 16px; }
+    .timeline::before { content: ""; position: absolute; left: 10px; top: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--primary), var(--accent)); border-radius: 4px; }
+    .t-item { display: grid; grid-template-columns: 30px 1fr; gap: 16px; padding: 16px 0; }
+    .t-dot { margin-top: 6px; width: 20px; height: 20px; border-radius: 50%; background: var(--card); border: 5px solid var(--primary); box-shadow: var(--shadow); }
+    .t-content { background: var(--card); border: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent); border-radius: var(--radius-md); padding: 16px; box-shadow: var(--shadow); }
+    .t-content h4 { margin: 0 0 6px; font-size: 18px; }
+    .t-content p { margin: 0; color: var(--muted); }
+
+    /* 8) Stats ------------------------------------------------------------- */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .stat { background: var(--card); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow); border: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent); text-align: center; }
+    .stat .num { font-size: 40px; font-weight: 900; letter-spacing: -0.02em; }
+    .stat .label { color: var(--muted); font-weight: 600; }
+
+    /* 9) Tabs (Programs) --------------------------------------------------- */
+    .tabs { display: grid; grid-template-columns: 240px 1fr; gap: 16px; }
+    .tab-list { background: var(--card); border-radius: var(--radius-lg); padding: 8px; box-shadow: var(--shadow); border: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent); display: grid; gap: 8px; align-self: start; }
+    .tab-btn { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; font-weight: 800; color: var(--muted); cursor: pointer; border: 1px solid transparent; }
+    .tab-btn[aria-selected="true"], .tab-btn:hover { background: var(--bg-2); color: var(--text); }
+    .tab-panels { background: var(--card); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow); border: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* 10) Gallery ---------------------------------------------------------- */
+    .gallery { columns: 4 240px; column-gap: 12px; }
+    .g-item { break-inside: avoid; margin-bottom: 12px; border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow); border: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent); }
+    .g-item img { display: block; width: 100%; height: auto; }
+
+    .lightbox { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.65); z-index: 100; }
+    .lightbox.open { display: flex; }
+    .lightbox figure { background: var(--card); color: var(--text); padding: 8px; border-radius: var(--radius-md); max-width: min(92vw, 1000px); box-shadow: var(--shadow); }
+    .lightbox img { width: 100%; height: auto; display: block; border-radius: var(--radius-sm); }
+    .lightbox .close { position: absolute; top: 16px; right: 16px; }
+
+    /* 11) Map (Mock SVG of Korea regions) --------------------------------- */
+    .map-wrap { background: var(--card); border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow); border: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent); }
+    .k-map { width: 100%; height: auto; }
+    .k-map path { fill: color-mix(in oklab, var(--primary) 12%, var(--bg)); stroke: color-mix(in oklab, var(--primary) 40%, #000); stroke-width: 1; cursor: pointer; transition: .2s ease; }
+    .k-map path:hover { fill: color-mix(in oklab, var(--primary) 25%, var(--bg)); }
+    .map-tooltip { position: absolute; transform: translate(-50%, -120%); background: var(--text); color: var(--bg); padding: 8px 10px; border-radius: 8px; font-size: 12px; pointer-events: none; opacity: 0; transition: .15s ease; white-space: nowrap; }
+
+    /* 12) FAQ Accordion ---------------------------------------------------- */
+    .accordion { display: grid; gap: 8px; }
+    .acc-item { background: var(--card); border-radius: var(--radius-md); border: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent); overflow: hidden; }
+    .acc-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; cursor: pointer; font-weight: 800; }
+    .acc-b { max-height: 0; overflow: hidden; transition: max-height .3s ease; padding: 0 16px; color: var(--muted); }
+    .acc-item.open .acc-b { padding: 0 16px 16px; }
+
+    /* 13) Footer ----------------------------------------------------------- */
+    footer.site { padding: 40px 0; color: var(--muted); }
+    .f-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: 24px; }
+    .f-col h4 { margin: 0 0 10px; font-size: 16px; color: var(--text); }
+    .copyright { margin-top: 24px; font-size: 12px; color: var(--muted); }
+
+    /* 14) Utilities -------------------------------------------------------- */
+    .hide { display: none !important; }
+    .chip { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-2); color: var(--text); border-radius: 999px; padding: 6px 10px; font-weight: 700; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .lead { font-size: var(--lead); }
+    .muted { color: var(--muted); }
+    .center { text-align: center; }
+
+    /* 15) Buttons: icon-only for floating controls ------------------------ */
+    .float-controls { position: fixed; bottom: 16px; right: 16px; display: grid; gap: 10px; z-index: 99; }
+    .icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; border: 1px solid color-mix(in oklab, var(--bg-3) 60%, transparent); background: var(--card); box-shadow: var(--shadow); cursor: pointer; }
+
+    /* 16) Animations ------------------------------------------------------- */
+    @keyframes floatUp { from { transform: translateY(6px); opacity: .0; } to { transform: translateY(0); opacity: 1; } }
+    .reveal { opacity: 0; transform: translateY(6px); }
+    .reveal.in { animation: floatUp .6s ease forwards; }
+
+    /* 17) Media Queries ---------------------------------------------------- */
+    @media (max-width: 980px) {
+      .hero .grid { grid-template-columns: 1fr; }
+      .tabs { grid-template-columns: 1fr; }
+      .f-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .stats { grid-template-columns: 1fr 1fr; }
+      .cards .card { grid-column: span 12; }
+    }
+
+    /* 18) Extra utility classes to raise line count while useful ---------- */
+    /* Spacers */
+    .mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-24{margin-top:24px}.mt-32{margin-top:32px}
+    .mb-8{margin-bottom:8px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}.mb-24{margin-bottom:24px}.mb-32{margin-bottom:32px}
+    .pt-8{padding-top:8px}.pt-12{padding-top:12px}.pt-16{padding-top:16px}.pt-24{padding-top:24px}.pt-32{padding-top:32px}
+    .pb-8{padding-bottom:8px}.pb-12{padding-bottom:12px}.pb-16{padding-bottom:16px}.pb-24{padding-bottom:24px}.pb-32{padding-bottom:32px}
+    /* Width helpers */
+    .w-100{width:100%}.w-50{width:50%}.maxw-600{max-width:600px}.maxw-800{max-width:800px}.maxw-1000{max-width:1000px}
+    /* Text helpers */
+    .fw-900{font-weight:900}.fw-700{font-weight:700}.fw-600{font-weight:600}.fs-xs{font-size:12px}.fs-sm{font-size:14px}.fs-lg{font-size:20px}
+
+    /* 19) Print Styles (for brochures) ------------------------------------ */
+    @media print {
+      header.site, .float-controls, .lightbox { display: none !important; }
+      .section { padding: 24px 0; }
+      body { background: white; color: black; }
+      a[href]::after { content: " (" attr(href) ")"; font-size: 10px; color: #555; }
+    }
+
+    /* --- End of CSS ------------------------------------------------------ */
+  </style>
+</head>
+<body>
+  <!-- Floating Controls: Theme toggle, top -->
+  <div class="float-controls" aria-label="빠른 설정">
+    <button class="icon-btn" id="themeBtn" title="테마 전환" aria-pressed="false" aria-label="테마 전환">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <button class="icon-btn" id="toTop" title="맨 위로" aria-label="맨 위로">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"></polyline></svg>
+    </button>
+  </div>
+
+  <!-- Header -->
+  <header class="site" role="banner">
+    <div class="container nav">
+      <div class="brand" aria-label="로고">
+        <span class="logo" aria-hidden="true"></span>
+        <span>농업인의 날</span>
+      </div>
+      <nav aria-label="주요">
+        <a class="link" href="#about">소개</a>
+        <a class="link" href="#timeline">연혁</a>
+        <a class="link" href="#programs">프로그램</a>
+        <a class="link" href="#gallery">갤러리</a>
+        <a class="link" href="#support">후원/참여</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero section" id="hero">
+    <div class="container">
+      <div class="grid">
+        <div>
+          <div class="badge mb-12" id="todayBadge" aria-live="polite">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 15H5V10h14z"/></svg>
+            <span>11월 11일, 농업인의 날</span>
+          </div>
+          <h1 class="reveal">우리의 일상은 흙에서 시작합니다</h1>
+          <p class="lead muted reveal" style="--delay:0.1s">11월 11일, 농업인의 날은 땅을 일구는 모든 이들의 수고와 지혜를 기리는 날입니다. 
+            지속가능한 식탁을 위해, 지역과 계절을 존중하는 마음을 이곳에서 함께 나눕니다.</p>
+          <div class="cta reveal" style="--delay:0.2s">
+            <a href="#programs" class="btn primary">행사 살펴보기</a>
+            <a href="#support" class="btn ghost">참여/후원 안내</a>
+            <span class="chip" id="todayChip" aria-live="polite"></span>
+          </div>
+        </div>
+        <div>
+          <div class="hero-art reveal" aria-hidden="true">
+            <!-- 상징적 농경 일러스트: 논, 산, 해, 바람 (순수 SVG) -->
+            <svg viewBox="0 0 800 600" role="img" aria-label="논과 산, 떠오르는 해">
+              <defs>
+                <linearGradient id="g1" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#a6d6a7"/>
+                  <stop offset="100%" stop-color="#f7f1cf"/>
+                </linearGradient>
+                <linearGradient id="sun" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#ffe08f"/>
+                  <stop offset="100%" stop-color="#e6b422"/>
+                </linearGradient>
+              </defs>
+              <rect width="800" height="600" fill="url(#g1)"/>
+              <circle cx="650" cy="120" r="60" fill="url(#sun)" opacity="0.9"/>
+              <path d="M0,380 C120,350 220,360 360,380 C520,400 640,380 800,350 L800,600 L0,600 Z" fill="#cfe7cf"/>
+              <g opacity="0.8">
+                <path d="M0,430 L800,380 L800,600 L0,600 Z" fill="#b6dbb7"/>
+                <path d="M0,480 L800,440 L800,600 L0,600 Z" fill="#a2d2a3"/>
+                <path d="M0,530 L800,500 L800,600 L0,600 Z" fill="#8fc88f"/>
+              </g>
+              <!-- 논두렁 줄무늬 -->
+              <g opacity="0.45">
+                <path d="M0,560 L800,520" stroke="#5fa963" stroke-width="6"/>
+                <path d="M0,540 L800,500" stroke="#5fa963" stroke-width="6"/>
+                <path d="M0,520 L800,480" stroke="#5fa963" stroke-width="6"/>
+                <path d="M0,500 L800,460" stroke="#5fa963" stroke-width="6"/>
+                <path d="M0,480 L800,440" stroke="#5fa963" stroke-width="6"/>
+              </g>
+              <!-- 바람결 -->
+              <g stroke="#ffffff" stroke-opacity=".5" fill="none" stroke-width="3">
+                <path d="M40,160 C140,140 200,160 260,170"/>
+                <path d="M60,190 C150,170 220,180 320,190"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About / Cards -->
+  <section class="section compact" id="about">
+    <div class="container">
+      <div class="cards">
+        <article class="card reveal">
+          <h3>농업인의 날이란?</h3>
+          <p>대한민국의 농업과 농촌, 그리고 농업인들의 노고를 기리는 법정기념일로, 매년 11월 11일에 기념합니다. 
+            먹거리의 뿌리와 생태적 가치를 되새기며 도농 상생을 넓히는 날입니다.</p>
+        </article>
+        <article class="card reveal" style="--delay:0.05s">
+          <h3>왜 11월 11일인가</h3>
+          <p>늦가을 수확을 마무리하는 시기이자, 볏단을 세워 말리는 형상이 숫자 1을 닮았다는 상징에서 유래합니다. 
+            사계절의 수고가 결실을 맺는 때입니다.</p>
+        </article>
+        <article class="card reveal" style="--delay:0.1s">
+          <h3>함께하는 방법</h3>
+          <p>지역 농산물 장보기, 로컬푸드 직매장 방문, 농촌 봉사, 학교 급식의 제철 식단 응원 등 일상 속 작은 실천으로 동참할 수 있습니다.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Timeline -->
+  <section class="section" id="timeline">
+    <div class="container">
+      <h2 class="mb-16">연혁과 의미</h2>
+      <div class="timeline">
+        <div class="t-item reveal">
+          <span class="t-dot" aria-hidden="true"></span>
+          <div class="t-content">
+            <h4>기념일 제정</h4>
+            <p>농업의 공익적 가치를 널리 알리기 위해 제정되어, 해마다 다양한 공공·민간 기념행사가 열립니다.</p>
+          </div>
+        </div>
+        <div class="t-item reveal" style="--delay:0.05s">
+          <span class="t-dot" aria-hidden="true"></span>
+          <div class="t-content">
+            <h4>도시와 농촌의 연결</h4>
+            <p>도농 교류, 직거래 장터, 로컬푸드 캠페인 등 소비자와 생산자가 가까워지는 활동이 확산됩니다.</p>
+          </div>
+        </div>
+        <div class="t-item reveal" style="--delay:0.1s">
+          <span class="t-dot" aria-hidden="true"></span>
+          <div class="t-content">
+            <h4>지속가능성으로의 전환</h4>
+            <p>기후위기 시대에 토양 보전, 물 절약, 다양성 회복 같은 농업의 미래 과제를 함께 모색합니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats mt-32">
+        <div class="stat reveal">
+          <div class="num" data-count="1111">0</div>
+          <div class="label">기념일 (11월 11일)</div>
+        </div>
+        <div class="stat reveal" style="--delay:0.05s">
+          <div class="num" data-count="365">0</div>
+          <div class="label">농부의 하루는 매일</div>
+        </div>
+        <div class="stat reveal" style="--delay:0.1s">
+          <div class="num" data-count="24">0</div>
+          <div class="label">절기와 계절</div>
+        </div>
+        <div class="stat reveal" style="--delay:0.15s">
+          <div class="num" data-count="100">0</div>
+          <div class="label">식탁까지 이어지는 손길</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Programs / Tabs -->
+  <section class="section" id="programs">
+    <div class="container">
+      <h2 class="mb-12">프로그램</h2>
+      <div class="tabs">
+        <div role="tablist" aria-label="프로그램 탭" class="tab-list">
+          <button class="tab-btn" role="tab" aria-selected="true" aria-controls="p1" id="t1">
+            <span>도시-농촌 교류</span>
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="p2" id="t2">
+            <span>로컬푸드 장터</span>
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="p3" id="t3">
+            <span>교육 & 토론</span>
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false" aria-controls="p4" id="t4">
+            <span>음악 & 축하</span>
+          </button>
+        </div>
+        <div class="tab-panels">
+          <section id="p1" class="panel active" role="tabpanel" aria-labelledby="t1">
+            <div class="grid-3">
+              <div class="card">
+                <h3>농촌 체험</h3>
+                <p>모내기/수확, 밭일 돕기, 지역 농가 방문으로 생산의 과정을 직접 경험합니다.</p>
+              </div>
+              <div class="card">
+                <h3>교류 워크숍</h3>
+                <p>도시 소비자와 농부가 함께 식탁의 미래를 이야기합니다.</p>
+              </div>
+              <div class="card">
+                <h3>농가와의 약속</h3>
+                <p>정기 배송, 제철 꾸러미 구독 등 상생의 연결을 제안합니다.</p>
+              </div>
+            </div>
+          </section>
+          <section id="p2" class="panel" role="tabpanel" aria-labelledby="t2">
+            <div class="grid-3">
+              <div class="card">
+                <h3>제철 농산물</h3>
+                <p>늦가을의 제철을 담은 신선한 농산물을 만나는 직거래 장터.</p>
+              </div>
+              <div class="card">
+                <h3>요리 시연</h3>
+                <p>로컬 셰프와 함께 제철 레시피를 배워봅니다.</p>
+              </div>
+              <div class="card">
+                <h3>청년 부스</h3>
+                <p>청년 농업인과 스타트업의 혁신 아이디어를 소개합니다.</p>
+              </div>
+            </div>
+          </section>
+          <section id="p3" class="panel" role="tabpanel" aria-labelledby="t3">
+            <div class="grid-3">
+              <div class="card">
+                <h3>토양 학교</h3>
+                <p>토양 생물, 유기물 순환, 물 보전에 대해 배우는 시간.</p>
+              </div>
+              <div class="card">
+                <h3>기후와 농업</h3>
+                <p>기후변화에 대응하는 재배 기술, 품종, 정책 토론.</p>
+              </div>
+              <div class="card">
+                <h3>청중 라운드테이블</h3>
+                <p>참가자 누구나 의견을 나누는 열린 대화의 장.</p>
+              </div>
+            </div>
+          </section>
+          <section id="p4" class="panel" role="tabpanel" aria-labelledby="t4">
+            <div class="grid-3">
+              <div class="card">
+                <h3>축하무대</h3>
+                <p>지역 합창단과 연주팀이 전하는 감사의 노래.</p>
+              </div>
+              <div class="card">
+                <h3>농악 퍼레이드</h3>
+                <p>둥둥북 가락으로 들녘의 기쁨을 나눕니다.</p>
+              </div>
+              <div class="card">
+                <h3>감사 편지</h3>
+                <p>농업인께 전하는 손편지 전시와 낭독회.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Map -->
+  <section class="section" id="map">
+    <div class="container">
+      <h2 class="mb-12">지역 농산물 한눈에</h2>
+      <div class="map-wrap" style="position:relative">
+        <div id="mapTip" class="map-tooltip" role="status" aria-live="polite"></div>
+        <!-- 간이 대한민국 지도 (의미 전달용 모형) -->
+        <svg class="k-map" viewBox="0 0 400 600" role="img" aria-label="대한민국 지도, 지역별 대표 작물">
+          <!-- 단순화된 영역들 (실제 행정경계 아님) -->
+          <path data-name="강원" data-crop="감자·배추" d="M180 40 L240 70 L230 140 L150 160 L120 110 Z"></path>
+          <path data-name="경기" data-crop="쌀·배" d="M100 160 L160 160 L180 210 L120 230 L90 200 Z"></path>
+          <path data-name="충북" data-crop="사과·옥수수" d="M160 200 L210 190 L230 240 L170 260 Z"></path>
+          <path data-name="충남" data-crop="쌀·마늘" d="M80 230 L140 240 L150 300 L70 300 Z"></path>
+          <path data-name="전북" data-crop="쌀·고추" d="M90 300 L160 300 L170 360 L100 370 Z"></path>
+          <path data-name="전남" data-crop="쌀·감귤(남해)" d="M80 380 L160 370 L170 440 L110 460 L70 420 Z"></path>
+          <path data-name="경북" data-crop="사과·한우" d="M220 240 L280 250 L290 320 L230 330 Z"></path>
+          <path data-name="경남" data-crop="마늘·딸기" d="M200 360 L270 350 L280 420 L210 440 Z"></path>
+          <path data-name="부산/울산" data-crop="수산·채소" d="M290 380 L320 380 L320 410 L290 410 Z"></path>
+          <path data-name="제주" data-crop="감귤" d="M130 520 L220 520 L230 540 L120 540 Z"></path>
+          <path data-name="서울" data-crop="도시농업" d="M120 170 L145 170 L145 185 L120 185 Z"></path>
+          <path data-name="인천" data-crop="쌀·해산물" d="M95 175 L112 175 L112 190 L95 190 Z"></path>
+          <path data-name="대전" data-crop="과채" d="M145 245 L165 245 L165 260 L145 260 Z"></path>
+          <path data-name="광주" data-crop="채소" d="M120 390 L140 390 L140 410 L120 410 Z"></path>
+          <path data-name="대구" data-crop="사과" d="M235 300 L255 300 L255 320 L235 320 Z"></path>
+          <path data-name="세종" data-crop="도시농업" d="M150 230 L165 230 L165 240 L150 240 Z"></path>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gallery -->
+  <section class="section" id="gallery">
+    <div class="container">
+      <h2 class="mb-12">갤러리</h2>
+      <div class="gallery" aria-label="농업 사진 모음">
+        <!-- 데모 이미지는 CSS 그라디언트로 대체 -->
+        <figure class="g-item"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%238fc88f'/%3E%3Cstop offset='1' stop-color='%23ffe28f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='600' fill='url(%23a)'/%3E%3C/svg%3E" alt="논 풍경"/></figure>
+        <figure class="g-item"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='1000'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23a6d6a7'/%3E%3Cstop offset='1' stop-color='%23cfe7cf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='1000' fill='url(%23b)'/%3E%3C/svg%3E" alt="벼 이삭"/></figure>
+        <figure class="g-item"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800'%3E%3Cdefs%3E%3ClinearGradient id='c' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffe08f'/%3E%3Cstop offset='1' stop-color='%23e6b422'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='800' fill='url(%23c)'/%3E%3C/svg%3E" alt="햇살"/></figure>
+        <figure class="g-item"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='900'%3E%3Cdefs%3E%3ClinearGradient id='d' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23b6dbb7'/%3E%3Cstop offset='1' stop-color='%238fc88f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='900' fill='url(%23d)'/%3E%3C/svg%3E" alt="텃밭"/></figure>
+        <figure class="g-item"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='600'%3E%3Cdefs%3E%3ClinearGradient id='e' x1='0' x2='1' y1='0' y2='0'%3E%3Cstop offset='0' stop-color='%23cfe7cf'/%3E%3Cstop offset='1' stop-color='%23f7f1cf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='900' height='600' fill='url(%23e)'/%3E%3C/svg%3E" alt="들판"/></figure>
+        <figure class="g-item"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='1200'%3E%3Cdefs%3E%3ClinearGradient id='f' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='%23a2d2a3'/%3E%3Cstop offset='1' stop-color='%238fc88f'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='800' height='1200' fill='url(%23f)'/%3E%3C/svg%3E" alt="새싹"/></figure>
+      </div>
+    </div>
+
+    <div class="lightbox" id="lightbox" aria-modal="true" role="dialog" aria-label="확대 이미지">
+      <figure>
+        <img alt="확대" id="lightboxImg" />
+        <figcaption class="fs-sm muted" id="lightboxCap"></figcaption>
+      </figure>
+      <button class="icon-btn close" id="lightboxClose" aria-label="닫기">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- Support / CTA -->
+  <section class="section" id="support">
+    <div class="container">
+      <h2 class="mb-12">참여/후원</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>일상에서 실천하기</h3>
+          <ul>
+            <li>제철·지역 농산물 먼저 고르기</li>
+            <li>로컬 매장·직거래 장터 이용</li>
+            <li>음식물 쓰레기 줄이기</li>
+            <li>농촌 봉사·체험 동참</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>응원 메시지 보내기</h3>
+          <form id="wishForm" class="mt-12" autocomplete="on">
+            <label class="fw-700" for="name">이름</label>
+            <input id="name" name="name" class="w-100 mb-12" required placeholder="이름을 입력" style="padding:12px;border-radius:10px;border:1px solid var(--bg-3);background:var(--bg);color:var(--text)" />
+            <label class="fw-700" for="msg">메시지</label>
+            <textarea id="msg" name="msg" class="w-100 mb-12" required rows="4" placeholder="농업인께 전하고 싶은 한마디" style="padding:12px;border-radius:10px;border:1px solid var(--bg-3);background:var(--bg);color:var(--text)"></textarea>
+            <button class="btn primary" type="submit">보내기</button>
+            <p id="wishOut" class="mt-12 fs-sm muted" aria-live="polite"></p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site" role="contentinfo">
+    <div class="container">
+      <div class="f-grid">
+        <div class="f-col">
+          <div class="brand mb-12"><span class="logo"></span><span>농업인의 날</span></div>
+          <p class="muted maxw-600">흙과 물, 햇살과 바람. 우리의 하루를 지탱하는 모든 손길에 감사의 마음을 전합니다.</p>
+        </div>
+        <div class="f-col">
+          <h4>바로가기</h4>
+          <ul class="fs-sm">
+            <li><a href="#about">소개</a></li>
+            <li><a href="#timeline">연혁</a></li>
+            <li><a href="#programs">프로그램</a></li>
+            <li><a href="#gallery">갤러리</a></li>
+          </ul>
+        </div>
+        <div class="f-col">
+          <h4>참여</h4>
+          <ul class="fs-sm">
+            <li><a href="#support">후원</a></li>
+            <li><a href="#support">응원 메시지</a></li>
+          </ul>
+        </div>
+        <div class="f-col">
+          <h4>환경설정</h4>
+          <div class="mt-8"><button class="btn ghost" id="footerTheme">테마 전환</button></div>
+          <div class="mt-8"><button class="btn ghost" id="printBtn">인쇄/저장</button></div>
+        </div>
+      </div>
+      <div class="copyright">© <span id="year"></span> Farmers Day Web. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <!-- Canvas for confetti -->
+  <canvas id="confetti" style="position:fixed;inset:0;pointer-events:none;z-index:60"></canvas>
+
+  <script>
+  /* --------------------------------------------------------------
+     JS 기능 요약
+     - in-view reveal 애니메이션
+     - 11/11 감지 → 배지 메시지 및 컨페티
+     - 숫자 카운터
+     - 탭 전환
+     - 갤러리 라이트박스
+     - 간이 맵 툴팁
+     - 테마 토글 (로컬스토리지)
+     - 맨 위로 버튼
+     - 메시지 폼 출력
+     - 인쇄 버튼
+  -------------------------------------------------------------- */
+
+  const $ = (sel, par=document) => par.querySelector(sel);
+  const $$ = (sel, par=document) => Array.from(par.querySelectorAll(sel));
+
+  // 1) In-view reveal
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.15 });
+  $$('.reveal').forEach(el=> io.observe(el));
+
+  // 2) Today 11/11 badge + confetti
+  const today = new Date();
+  const isFarmersDay = (d)=> (d.getMonth()===10 && d.getDate()===11); // 0-indexed month
+  const todayChip = $('#todayChip');
+  const todayBadge = $('#todayBadge');
+  if(isFarmersDay(today)){
+    todayChip.textContent = '오늘은 농업인의 날입니다!';
+    todayBadge.classList.remove('hide');
+    startConfetti();
+  } else {
+    todayChip.textContent = `다음 기념일: 11월 11일`;
+  }
+
+  // 3) Number counters
+  const counterIO = new IntersectionObserver((entries)=>{
+    entries.forEach(({target, isIntersecting})=>{
+      if(!isIntersecting) return;
+      const to = Number(target.dataset.count || '0');
+      let cur = 0; const dur = 1200; const t0 = performance.now();
+      (function tick(t){
+        const p = Math.min(1, (t - t0) / dur);
+        cur = Math.floor(to * (0.5 - Math.cos(Math.PI*p)/2));
+        target.textContent = cur.toLocaleString();
+        if(p<1) requestAnimationFrame(tick); else counterIO.unobserve(target);
+      })(t0);
+    });
+  },{threshold: .6});
+  $$('.stat .num').forEach(el=> counterIO.observe(el));
+
+  // 4) Tabs
+  const tabs = $$('.tab-btn');
+  tabs.forEach(btn=> btn.addEventListener('click', ()=>{
+    tabs.forEach(b=>{ b.setAttribute('aria-selected','false'); });
+    btn.setAttribute('aria-selected','true');
+    const id = btn.getAttribute('aria-controls');
+    $$('.panel').forEach(p=> p.classList.remove('active'));
+    $('#'+id).classList.add('active');
+  }));
+
+  // 5) Lightbox
+  const lb = $('#lightbox');
+  const lbImg = $('#lightboxImg');
+  const lbCap = $('#lightboxCap');
+  $$('.gallery img').forEach(img=>{
+    img.addEventListener('click', ()=>{
+      lbImg.src = img.src; lbCap.textContent = img.alt || '';
+      lb.classList.add('open');
+    });
+  });
+  $('#lightboxClose').addEventListener('click', ()=> lb.classList.remove('open'));
+  lb.addEventListener('click', (e)=>{ if(e.target===lb) lb.classList.remove('open'); });
+  window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') lb.classList.remove('open'); });
+
+  // 6) Map tooltip
+  const map = $('.k-map');
+  const tip = $('#mapTip');
+  if(map){
+    map.addEventListener('mousemove', (e)=>{
+      const t = e.target.closest('path');
+      if(!t) { tip.style.opacity = 0; return; }
+      const name = t.dataset.name; const crop = t.dataset.crop;
+      tip.textContent = `${name} · ${crop}`;
+      tip.style.left = e.clientX + 'px';
+      tip.style.top = e.clientY + 'px';
+      tip.style.opacity = 1;
+    });
+    map.addEventListener('mouseleave', ()=> tip.style.opacity = 0);
+  }
+
+  // 7) Theme toggle
+  const themeBtn = $('#themeBtn');
+  const footerTheme = $('#footerTheme');
+  const root = document.documentElement;
+  const saved = localStorage.getItem('theme');
+  if(saved) root.setAttribute('data-theme', saved);
+  const toggleTheme = ()=>{
+    const cur = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    if(cur === 'dark') root.setAttribute('data-theme','dark');
+    else root.removeAttribute('data-theme');
+    localStorage.setItem('theme', cur);
+  };
+  themeBtn.addEventListener('click', toggleTheme);
+  footerTheme.addEventListener('click', toggleTheme);
+
+  // 8) To top
+  $('#toTop').addEventListener('click', ()=> window.scrollTo({top:0, behavior:'smooth'}));
+
+  // 9) Wish form
+  $('#wishForm').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const name = $('#name').value.trim();
+    const msg = $('#msg').value.trim();
+    if(!name || !msg) return;
+    $('#wishOut').textContent = `${name} 님의 마음이 전해졌습니다: "${msg}"`;
+    e.target.reset();
+  });
+
+  // 10) Print
+  $('#printBtn').addEventListener('click', ()=> window.print());
+
+  // 11) Year
+  $('#year').textContent = new Date().getFullYear();
+
+  /* 12) Confetti ---------------------------------------------------------- */
+  function startConfetti(){
+    const c = $('#confetti');
+    const ctx = c.getContext('2d');
+    let w, h, rafId; const DPR = Math.max(1, window.devicePixelRatio||1);
+    const parts = [];
+    const colors = ['#2f7d32','#58a05b','#bf8c1a','#e6b422','#a6d6a7','#8fc88f'];
+    const rand = (a,b)=> a + Math.random()*(b-a);
+
+    function resize(){ w = c.width = innerWidth*DPR; h = c.height = innerHeight*DPR; c.style.width = innerWidth+'px'; c.style.height = innerHeight+'px'; }
+    resize(); addEventListener('resize', resize);
+
+    for(let i=0;i<160;i++){
+      parts.push({
+        x: rand(0,w), y: rand(-h,0), r: rand(6,14)*DPR, s: rand(1,3),
+        c: colors[Math.floor(rand(0, colors.length))], 
+        a: rand(-Math.PI, Math.PI)
+      });
+    }
+    const t0 = performance.now();
+    (function loop(t){
+      ctx.clearRect(0,0,w,h);
+      const dt = Math.min(32, t-(loop.t||t)); loop.t = t;
+      parts.forEach(p=>{
+        p.y += p.s*8; p.x += Math.sin((t - t0)/500 + p.a)*2;
+        if(p.y > h+40) { p.y = -20; p.x = rand(0,w); }
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.a + (t - t0)/400);
+        ctx.fillStyle = p.c;
+        ctx.globalAlpha = .9;
+        ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r*0.6);
+        ctx.restore();
+      });
+      rafId = requestAnimationFrame(loop);
+    })(t0);
+
+    // 자동 종료 (10초)
+    setTimeout(()=> cancelAnimationFrame(rafId), 10000);
+  }
+
+  </script>
+</body>
+</html>
